@@ -1,11 +1,17 @@
 // app.dart
+import 'dart:convert';
 import 'dart:math';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 
 import 'webview.dart';
+import 'webview-plugin.dart';
+
+import 'package:http/http.dart' as http;
 
 void main() => runApp(MyApp());
+
+dynamic _config;
 
 class MyApp extends StatelessWidget {
   @override
@@ -26,6 +32,11 @@ class MyApp extends StatelessWidget {
 class Home extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // get config from database
+    getConfig();
+
+
+
     final thienHa = new Center(
         child: new ButtonTheme(
             minWidth: 200.0,
@@ -109,7 +120,7 @@ class Home extends StatelessWidget {
             minWidth: 200.0,
             height: 40.0,
             child: new Container(
-              margin: new EdgeInsets.only(bottom: 15.0),
+              margin: new EdgeInsets.only(top: 30.0, bottom: 15.0),
               child: Image(
                 image: AssetImage('images/ku.png'),
                 height: 40.0,
@@ -155,32 +166,32 @@ class Home extends StatelessWidget {
 
     final khuyenMai = new Center(
         child: new Container(
-      margin: EdgeInsets.only(top: 20.0),
-      alignment: Alignment.bottomCenter,
-      child: new ButtonTheme(
-          minWidth: 200.0,
-          height: 40.0,
-          child: new RaisedButton(
-            onPressed: () => _launchKhuyenMaiURL(context),
-            color: Colors.red,
-            shape: new RoundedRectangleBorder(
-                borderRadius: new BorderRadius.circular(5.0)),
-            child: new Text(
-              'NHẬN KHUYẾN MÃI',
-              style: new TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          )),
-    ));
+          margin: EdgeInsets.only(top: 20.0),
+          alignment: Alignment.bottomCenter,
+          child: new ButtonTheme(
+              minWidth: 200.0,
+              height: 40.0,
+              child: new RaisedButton(
+                onPressed: () => _launchKhuyenMaiURL(context),
+                color: Colors.red,
+                shape: new RoundedRectangleBorder(
+                    borderRadius: new BorderRadius.circular(5.0)),
+                child: new Text(
+                  'NHẬN KHUYẾN MÃI',
+                  style: new TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              )),
+        ));
 
     return Scaffold(
       appBar: new AppBar(
         title: new Center(
           child: Text('KUBET VN'),
         ),
-        backgroundColor: Colors.red,
+        backgroundColor: Colors.blue,
         leading: new IconButton(
             icon: Icon(
               Icons.menu,
@@ -202,14 +213,14 @@ class Home extends StatelessWidget {
           thienHa,
           new Text(''),
           choose,
-          thaTitle,
-          thaRegister,
-          thaLogin,
-          new Text(''),
-          new Text(''),
           kuTitle,
           kuRegister,
           kuLogin,
+          new Text(''),
+          new Text(''),
+          thaTitle,
+          thaRegister,
+          thaLogin,
           khuyenMai
         ],
       ),
@@ -220,65 +231,49 @@ class Home extends StatelessWidget {
 
   _callMe() async {
     // Android
-    const uri = 'https://zalo.me/g/azjbxd745';
-    if (await canLaunch(uri)) {
-      await launch(uri);
+    if (await canLaunch(_config['zalo'].toString())) {
+      await launch(_config['zalo'].toString());
     } else {
       // iOS
-      const uri = 'https://zalo.me/g/azjbxd745';
-      if (await canLaunch(uri)) {
-        await launch(uri);
+      if (await canLaunch(_config['zalo'].toString())) {
+        await launch(_config['zalo'].toString());
       } else {
-        throw 'Could not launch $uri';
+        throw 'Could not launch '+ _config['zalo'].toString();
       }
     }
   }
 
   void _launchKhuyenMaiURL(BuildContext context) {
-    const url =
-        'https://docs.google.com/forms/d/e/1FAIpQLSeXqS5S15fH2jls6ykvVEpBzpSNnj_nW4aCF9VzoGVsTzj1Wg/viewform?fbzx=-3698780918055340827';
     Navigator.push(context,
-        MaterialPageRoute(builder: (context) => WebViewContainer(url)));
+        MaterialPageRoute(builder: (context) => WebViewPluginContainer(_config['google'].toString())));
   }
 
   void _launchThaURL(context) {
-    const url = 'https://ff529.jb77.net/';
     Navigator.push(context,
-        MaterialPageRoute(builder: (context) => WebViewContainer(url)));
+        MaterialPageRoute(builder: (context) => WebViewPluginContainer(_config['tha'].toString())));
   }
 
   void _launchRegisterKuURL(context) {
     Random rnd = new Random();
     int min = 1;
-    int max = 5;
-    final int rand = min + rnd.nextInt(max - min);
-
     String url = '';
-    switch (rand) {
-      case 1:
-        url = 'https://ff3197.ku11.net/';
-        break;
-      case 2:
-        url = 'https://ff3198.ku11.net/';
-        break;
-      case 3:
-        url = 'https://ff3200.ku11.net/';
-        break;
-      case 4:
-        url = 'https://ff3201.ku11.net/';
-        break;
-      case 5:
-        url = 'https://ff3208.ku11.net/';
-        break;
-    }
-
+    List<String> listKu = _config['ku'].toString().split(',');
+    final int rand = min + rnd.nextInt(listKu.length+1 - min);
+    url = listKu[rand-1];
     Navigator.push(context,
-        MaterialPageRoute(builder: (context) => WebViewContainer(url)));
+        MaterialPageRoute(builder: (context) => WebViewPluginContainer(url)));
   }
 
   void _launchLoginKuURL(context) {
-    const url = 'https://ff3197.ku11.net/';
     Navigator.push(context,
-        MaterialPageRoute(builder: (context) => WebViewContainer(url)));
+        MaterialPageRoute(builder: (context) => WebViewContainer(_config['loginku'].toString())));
   }
+}
+
+Future<String> getConfig() async {
+  String url = 'https://hoctienganhphanxa.com/api/config/kubetvn/api.php';
+  final response = await http.get(url + '?input={"what":"10"}');
+  _config = json.decode(response.body.toString())[0];
+  print(_config);
+  return json.decode(response.body.toString())[0]['url'];
 }
